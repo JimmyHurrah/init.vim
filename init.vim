@@ -1,98 +1,143 @@
-" https://codekoalas.com/blog/setting-neovim-javascript-development
-" Install Vim Plug if not installed
-    if empty(glob('~/.config/nvim/autoload/plug.vim'))
-      silent !curl -fLo ~/.config/nvim/autoload/plug.vim --create-dirs
-        \ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-      autocmd VimEnter * PlugInstall
-    endif 
-    call plug#begin()
+""""""""
+" BASE "
+""""""""
+set tabstop=2 softtabstop=2 shiftwidth=2 expandtab smartindent
+set relativenumber nu
+set nowrap
+set hidden
+set noerrorbells
+set undodir=~/.vim/undodir undofile noswapfile nobackup  
+set scrolloff=4 sidescrolloff=20
+set termguicolors
+set colorcolumn=80
+if (has("termguicolors"))
+ set termguicolors
+endif
+set completeopt=menu,menuone,noselect
 
-    "MUSIC
-    Plug 'munshkr/vim-tidal' 
+"""""""""""
+" PLUGINS "
+"""""""""""
+if empty(glob('~/.config/nvim/autoload/plug.vim'))
+  silent !curl -fLo ~/.config/nvim/autoload/plug.vim --create-dirs
+	\ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+  autocmd VimEnter * PlugInstall
+endif 
+call plug#begin()
+  Plug 'BurntSushi/ripgrep' " brew install ripgrep
+  Plug 'editorconfig/editorconfig-vim'
+  Plug 'neovim/nvim-lspconfig'
+  Plug 'nvim-lua/plenary.nvim'
+  Plug 'nvim-telescope/telescope-fzf-native.nvim', { 'do': 'make' }
+  Plug 'nvim-telescope/telescope.nvim'
+  Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
 
-    Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins'}
-    Plug 'ludovicchabant/vim-gutentags'
-    Plug 'digitaltoad/vim-pug'
-    Plug 'yegappan/mru'
-    Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
-    Plug 'editorconfig/editorconfig-vim'
-    Plug 'rking/ag.vim'
-    Plug 'mhartington/oceanic-next'
+  " Completion
+  Plug 'hrsh7th/nvim-cmp' "autocomplete
+  Plug 'hrsh7th/cmp-buffer' "complete words from opened files
+  Plug 'hrsh7th/cmp-path' "complete file paths 
+  Plug 'hrsh7th/cmp-nvim-lsp'
+  Plug 'hrsh7th/cmp-vsnip'
+  Plug 'hrsh7th/vim-vsnip'
 
-    "Live feedback
-    Plug 'metakirby5/codi.vim'
-    
-    "Dash 
-    Plug 'rizzatti/dash.vim'
+  " Color
+  Plug 'dracula/vim', { 'as': 'dracula' }
+call plug#end()
 
-    "Javascript Plugins
-    Plug 'pangloss/vim-javascript'
-    Plug 'carlitux/deoplete-ternjs'
-    Plug 'ternjs/tern_for_vim', { 'do': 'npm install && npm install -g tern' }
+lua <<EOF
 
-    "Prettier
-    Plug 'w0rp/ale'
-    let g:ale_fixers = {}
-    let g:ale_linters = {}
-    let g:ale_fixers['javascript'] = ['eslint'] ", 'prettier']
-    let g:ale_linters['javascript'] = ['eslint']
-    let g:ale_fix_on_save = 1
-    let g:ale_javascript_eslint_use_local_config = 1
-    "let g:ale_javascript_prettier_use_local_config = 1
+local telescope = require('telescope')
+telescope.setup({
+  defaults = {
+    layout_strategy = 'vertical',
+    layout_config = { height = 0.95 },
+    find_command = 'rg',
+    preview = {
+      treesitter = false
+    }
+  },
+})
 
-    "GraphQL
-    Plug 'jparise/vim-graphql'
+telescope.load_extension "fzf"
 
-    "JSX
-    Plug 'mxw/vim-jsx'
-    let g:jsx_ext_required = 0 "Handle .js files as well as .jsx
+require'nvim-treesitter.configs'.setup {
+  -- One of "all", "maintained" (parsers with maintainers), or a list of languages
+  ensure_installed = "maintained",
+  -- Install languages synchronously (only applied to `ensure_installed`)
+  sync_install = false,
+  highlight = {
+    enable = true,
+    additional_vim_regex_highlighting = false,
+  },
+}
 
-    "Typescript Plugins
-    Plug 'mhartington/deoplete-typescript'
-    Plug 'leafgarland/typescript-vim'
-    Plug 'HerringtonDarkholme/yats.vim'
+-- Setup nvim-cmp.
+local cmp = require'cmp'
+cmp.setup({
+  snippet = {
+    expand = function(args)
+      vim.fn["vsnip#anonymous"](args.body)
+    end,
+  },
+  mapping = {
+    ["<Tab>"] = function(fallback)
+      if cmp.visible() then
+        cmp.select_next_item()
+      else
+        fallback()
+      end
+    end,
+    ["<S-Tab>"] = function(fallback)
+      if cmp.visible() then
+        cmp.select_prev_item()
+      else
+        fallback()
+      end
+    end,
+    ["<CR>"] = cmp.mapping.confirm({ select = true }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
+  },
+  sources = cmp.config.sources({
+    { name = 'nvim_lsp' },
+    { name = 'vsnip' },
+  }, {
+    { name = 'buffer' },
+  })
+})
 
-    call plug#end()
+-- Use buffer source for `/` (if you enabled `native_menu`, this won't work anymore).
+cmp.setup.cmdline('/', {
+  sources = {
+    { name = 'buffer' }
+  }
+})
 
-    let mapleader=","
+-- Use cmdline & path source for ':' (if you enabled `native_menu`, this won't work anymore).
+cmp.setup.cmdline(':', {
+  sources = cmp.config.sources({
+    { name = 'path' }
+  }, {
+    { name = 'cmdline' }
+  })
+})
 
-    "Keybindings
-    map <leader>p :FZF!<CR>
-    map <leader>. :MRU<CR>
-    "yank word into z register and search with silver searcher
-    map <leader>f "zyiw:Ag <C-R>z<CR>
-    "yank word into z register and search in Dash documentation
-    map <leader>d "zyiw:Dash <C-R>z<CR>
+  -- Setup lspconfig.
+local capabilities = require('cmp_nvim_lsp').update_capabilities(vim.lsp.protocol.make_client_capabilities())
+local omnisharp_bin = "/Users/jimmyhurrah/Documents/omnisharp-osx-x64-net6.0/OmniSharp"
+local pid = vim.fn.getpid()
 
-    "filetree
-    let g:netrw_browse_split = 3
+require'lspconfig'.omnisharp.setup{
+  -- find <omnisharp> | xargs xattr -r -d com.apple.quarantine
+  cmd = { omnisharp_bin, "-lsp", "-hpid", tostring(pid) };
+  capabilities = capabilities
+}
+EOF
 
-    let g:deoplete#enable_at_startup = 1
-    let g:deoplete#enable_ignore_case = 1
-    let g:deoplete#enable_smart_case = 1
-    let g:deoplete#enable_camel_case = 1
-    let g:deoplete#enable_refresh_always = 1
-    let g:deoplete#max_abbr_width = 0
-    let g:deoplete#max_menu_width = 0
-    let g:deoplete#omni#input_patterns = get(g:,'deoplete#omni#input_patterns',{})
-    call deoplete#custom#set('_', 'matchers', ['matcher_full_fuzzy'])
+colorscheme dracula
 
-    let g:tern_request_timeout = 1
-    let g:tern_request_timeout = 6000
-    let g:tern#command = ["tern"]
-    let g:tern#arguments = ["--persistent"]
-    let g:tern#arguments = ["--no-port-file"]
-    let g:deoplete#sources#tss#javascript_support = 1
-    let g:tsuquyomi_javascript_support = 1
-    let g:tsuquyomi_auto_open = 1
-    let g:tsuquyomi_disable_quickfix = 1
-
-    if (has("termguicolors"))
-	 set termguicolors
-    endif
-
-    " Theme
-    syntax enable
-    colorscheme OceanicNext
-
-    set nowrap
+let mapleader=","
+nnoremap <leader>ff <cmd>Telescope find_files<cr>
+nnoremap <leader>fs <cmd>Telescope live_grep<cr>
+nnoremap <leader>fw <cmd>Telescope grep_string<cr>
+nnoremap <leader>fo <cmd>Telescope oldfiles<cr>
+nnoremap <leader>fb <cmd>Telescope buffers<cr>
+nnoremap <Leader>fe :Vexplore<CR>
